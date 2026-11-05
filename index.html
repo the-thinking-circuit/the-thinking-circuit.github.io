@@ -12,7 +12,7 @@
         <link rel="prev" href="https://E3Computing.org/">
       
       
-        <link rel="next" href="./archive/2026/03/">
+        <link rel="next" href="./archive/2026/11/">
       
       
         
@@ -381,6 +381,8 @@
       
         
       
+        
+      
     
     
     
@@ -421,6 +423,33 @@
 
             </label>
             <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="./archive/2026/11/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  November 2026
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
               
                 
                   
@@ -498,6 +527,8 @@
       
         
       
+        
+      
     
     
     
@@ -538,6 +569,33 @@
 
             </label>
             <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="./category/demo/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Demo
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
               
                 
                   
@@ -650,6 +708,122 @@
       <header class="md-typeset">
         
       </header>
+      
+        <article class="md-post md-post--excerpt">
+  <header class="md-post__header">
+    
+      <nav class="md-post__authors md-typeset">
+        
+          <span class="md-author">
+            <img src="https://github.com/khanhdang.png" alt="Khanh">
+          </span>
+        
+      </nav>
+    
+    <div class="md-post__meta md-meta">
+      <ul class="md-meta__list">
+        <li class="md-meta__item">
+          <time datetime="2026-11-05 00:00:00+00:00">November 5, 2026</time></li>
+        
+          <li class="md-meta__item">
+            in
+            
+              <a href="./category/demo/" class="md-meta__link">Demo</a></li>
+        
+        
+          
+          <li class="md-meta__item">
+            
+              6 min read
+            
+          </li>
+        
+        
+      </ul>
+      
+    </div>
+  </header>
+  <div class="md-post__content md-typeset">
+    <h2 id="hand-gestures-with-an-event-camera-and-a-spiking-neural-network"><a class="toclink" href="2026/11/05/hand-gestures-with-an-event-camera-and-a-spiking-neural-network/">Hand gestures with an event camera and a spiking neural network</a></h2>
+<blockquote>
+<p>This isn't research. We built these demos for fun and for the class, so don't expect benchmarks or careful experiments here.</p>
+</blockquote>
+<p>If you've never played with an event camera, here's the quick version: there are no frames. Each pixel speaks up on its own whenever the brightness it sees changes, and sends an event saying where, when (down to the microsecond), and whether it got brighter (<em>ON</em>) or darker (<em>OFF</em>). Swipe your hand past the sensor and you get about 100,000 events in 1.5 seconds. Sit still and you get around 20,000, and most of those are just sensor noise.</p>
+<p>For the <a href="https://esc.e3computing.org/">Event Sensor Course</a> by E3Computing Group, we wanted something fun that goes all the way from camera to "the computer knows I swiped left." So we built two small open-source demos. Both record events with an OpenMV GENX320 event camera on an H7 Plus board, train a convolutional spiking neural network (CSNN) with <a href="https://github.com/fangwei123456/spikingjelly">SpikingJelly</a>, and then detect hand swipes live:</p>
+<ul>
+<li><a href="https://github.com/EventSensorCourse/gesture_recognition_genx320_spikesum">gesture_recognition_genx320_spikesum</a> gives the network event <em>counts</em>.</li>
+<li><a href="https://github.com/EventSensorCourse/gesture_recognition_genx320_spike-event">gesture_recognition_genx320_spike-event</a> gives it the events themselves, as binary spikes.</li>
+</ul>
+<p>Both use the same data, network and live detector. They differ only in how the events get turned into network input.</p>
+<h3 id="the-data"><a class="toclink" href="2026/11/05/hand-gestures-with-an-event-camera-and-a-spiking-neural-network/#the-data">The data</a></h3>
+<p>The recorder is a little guided app. It tells you what to do (<code>swipe_left</code>, <code>swipe_right</code>, <code>swipe_up</code>, <code>swipe_down</code>, or <code>none</code>, which means sit still), shouts <strong>GO!</strong>, and keeps exactly 1.5 s of events, timed with the sensor's own clock. Both repositories come with an example dataset of 100 clips: 20 per class, one person (me), one session, split 70 / 15 / 15 into train, valid and test.</p>
+<p><img alt="Ten swipe_left clips from the example dataset; blue and red are the two polarities" src="imgs/preview-swipe_left.png" /></p>
+<p><em>Ten <code>swipe_left</code> clips and their event counts, anywhere from 93k to 167k per clip. You only see the moving hand and arm, because the still background never changes and so never fires.</em></p>
+<h3 id="demo-1-summing-the-spikes"><a class="toclink" href="2026/11/05/hand-gestures-with-an-event-camera-and-a-spiking-neural-network/#demo-1-summing-the-spikes">Demo 1: summing the spikes</a></h3>
+<p>The first demo counts. Every event is treated as a spike, and the spikes get added up: the clip is cut into 16 time steps of 94 ms, the 320 × 320 sensor is shrunk to 64 × 64 blocks of 5 × 5 pixels, and ON and OFF go into separate channels. Each count is then squashed with <code>log(1 + count)</code>. What the network sees is a <code>[16, 2, 64, 64]</code> tensor of real numbers between 0 and about 5, and its first layer of LIF (leaky integrate-and-fire) neurons turns those into spikes.</p>
+<p><img alt="Live detection with the summed-spike network" src="imgs/spikesum-detection.gif" /></p>
+<p><em><code>detect_gestures.py</code> replaying held-out test clips. Cyan is ON, magenta is OFF, and the panel shows how often each output neuron is firing.</em></p>
+<h3 id="demo-2-events-go-straight-in-as-spikes"><a class="toclink" href="2026/11/05/hand-gestures-with-an-event-camera-and-a-spiking-neural-network/#demo-2-events-go-straight-in-as-spikes">Demo 2: events go straight in as spikes</a></h3>
+<p>The second demo skips the counting. An input neuron spikes (1) in a time step if <em>any</em> event landed in its 5 × 5 block, and stays at 0 if none did. ON and OFF get merged. So the input is a <code>[16, 1, 64, 64]</code> tensor of zeros and ones, and the whole network, input to output, runs on nothing but spikes. That's the kind of input a neuromorphic chip wants, which is why we were curious about it.</p>
+<p>You do throw some things away doing this. Exact timing inside a 94 ms step is gone. So is the count, since 1 event or 50 events in a block both make one spike. Polarity is gone too. On the example data, an average training clip of 105,886 events shrinks to 10,249 input spikes, roughly 10 %.</p>
+<p><img alt="One swipe_left clip: events, input spikes, and output spikes over 16 time steps" src="imgs/spike-trace.png" /></p>
+<p><em>One <code>swipe_left</code> test clip over 16 steps. Top row: the events. Middle row: the input spikes the network actually gets. Bottom row: spikes from the five output neurons. <code>swipe_left</code> fires in 13 of the 16 steps and wins. Made with <code>show_spikes.py</code>.</em></p>
+<p>I like how quiet the network is: only 3 to 12 % of the convolution neurons fire in any given step. And you can see that nothing comes out in step 0, because the membrane potentials start at zero and need a step to charge up.</p>
+<p><img alt="Live detection with the spike-input network" src="imgs/spike-event-detection.gif" /></p>
+<p><em><code>detect_spikes.py</code> replaying test clips: one still clip and one swipe in each direction, all called correctly.</em></p>
+<h3 id="the-network-and-the-live-detector"><a class="toclink" href="2026/11/05/hand-gestures-with-an-event-camera-and-a-spiking-neural-network/#the-network-and-the-live-detector">The network and the live detector</a></h3>
+<p>Both demos share the same CSNN. There are three convolution blocks (<code>Conv 3×3 &gt; BatchNorm &gt; LIF &gt; MaxPool</code>) with 16, 32 and 64 channels, then a hidden layer of 128 neurons, then five output LIF neurons, one per class. That's about 550k parameters. Whichever output neuron fires most often is the answer. Training uses a surrogate gradient and backpropagation through time over the 16 steps, and on a laptop CPU an epoch over 70 clips takes about 1 to 1.5 s. No GPU needed.</p>
+<p>For live detection, every 100 ms (sensor time) the detector grabs the last 1.5 s of events and runs the network from fresh neurons. It only calls a gesture if the window has clearly more events than a still scene, the same class wins two windows in a row, and enough time has passed since the last gesture. Otherwise one swipe would get reported over and over.</p>
+<h3 id="how-did-they-do"><a class="toclink" href="2026/11/05/hand-gestures-with-an-event-camera-and-a-spiking-neural-network/#how-did-they-do">How did they do?</a></h3>
+<p>On the example dataset (one person, one session, T = 16):</p>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Summed spikes</th>
+<th>Events as spikes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Input</td>
+<td><code>[16, 2, 64, 64]</code>, log counts</td>
+<td><code>[16, 1, 64, 64]</code>, 0/1</td>
+</tr>
+<tr>
+<td>Best valid accuracy</td>
+<td>100 %</td>
+<td>100 % (got there sooner, at epoch 16)</td>
+</tr>
+<tr>
+<td>Test accuracy</td>
+<td>15 / 15</td>
+<td>14 / 15 (one <code>swipe_down</code> called <code>swipe_left</code>)</td>
+</tr>
+<tr>
+<td>Replayed test gestures</td>
+<td>12 / 12, 0 false alarms</td>
+<td>11 / 12, 0 false alarms</td>
+</tr>
+</tbody>
+</table>
+<p>That's a difference of one test clip, so I wouldn't read much into it. If I had to bet, I'd blame the missing polarity: ON and OFF edges tell you which side of the hand is getting brighter, and that's handy for telling directions apart. Also, take all these numbers with a big grain of salt. Every clip is me, in one session, and there are only three test clips per class. We haven't measured live accuracy yet.</p>
+<h3 id="try-it-yourself"><a class="toclink" href="2026/11/05/hand-gestures-with-an-event-camera-and-a-spiking-neural-network/#try-it-yourself">Try it yourself</a></h3>
+<p>Both repositories ship with the example data and pretrained weights, so you can play with everything without owning a camera:</p>
+<div class="highlight"><pre><span></span><code>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/EventSensorCourse/gesture_recognition_genx320_spike-event.git
+<span class="nb">cd</span><span class="w"> </span>gesture_recognition_genx320_spike-event
+python3.12<span class="w"> </span>-m<span class="w"> </span>venv<span class="w"> </span>.venv<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">source</span><span class="w"> </span>.venv/bin/activate
+python<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>-r<span class="w"> </span>requirements.txt
+
+python<span class="w"> </span>show_spikes.py<span class="w">                                                  </span><span class="c1"># follow one clip through the network</span>
+python<span class="w"> </span>detect_spikes.py<span class="w"> </span>--model<span class="w"> </span>pretrained/spike_csnn.pt<span class="w"> </span>--clips<span class="w"> </span><span class="nb">test</span><span class="w">  </span><span class="c1"># replay test clips, no board needed</span>
+</code></pre></div>
+<p>If you do have an OpenMV H7 Plus and a GENX320, record your own session with <code>gesture_recorder.py</code>, retrain, and point the detector at the live camera. A few things I'd try next: add polarity back as a second input channel, only let a block spike once it sees at least <em>k</em> events, or train with 32 or 64 time steps and see what changes.</p>
+<p>Both projects are MIT licensed, so go wild.</p>
+    
+    
+  </div>
+</article>
       
         <article class="md-post md-post--excerpt">
   <header class="md-post__header">
