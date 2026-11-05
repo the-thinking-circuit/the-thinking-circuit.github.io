@@ -775,7 +775,7 @@
                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
                           <span class="md-ellipsis">
                             
-                              6 min read
+                              7 min read
                             
                           </span>
                         </div>
@@ -870,6 +870,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#bonus-a-bubble-pop-game" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Bonus: a bubble pop game
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -956,7 +967,23 @@ python<span class="w"> </span>show_spikes.py<span class="w">                    
 python<span class="w"> </span>detect_spikes.py<span class="w"> </span>--model<span class="w"> </span>pretrained/spike_csnn.pt<span class="w"> </span>--clips<span class="w"> </span><span class="nb">test</span><span class="w">  </span><span class="c1"># replay test clips, no board needed</span>
 </code></pre></div>
 <p>If you do have an OpenMV H7 Plus and a GENX320, record your own session with <code>gesture_recorder.py</code>, retrain, and point the detector at the live camera. A few things I'd try next: add polarity back as a second input channel, only let a block spike once it sees at least <em>k</em> events, or train with 32 or 64 time steps and see what changes.</p>
-<p>Both projects are MIT licensed, so go wild.</p>
+<h2 id="bonus-a-bubble-pop-game">Bonus: a bubble pop game</h2>
+<p>The gesture demos take some work before anything happens: you record, you train, and then you detect. For a quicker feel of what the sensor sees, we also made <a href="https://github.com/EventSensorCourse/event_bubble_pop">event_bubble_pop</a>, a small game for the same GENX320 and H7 Plus. Bubbles float up over the live event view, and you pop them by waving your hand through them. If a bubble reaches the top, the game is over. Holding your hand still inside a bubble does nothing, because a still hand makes no events.</p>
+<p><img alt="Playing Event Bubble Pop with the live GENX320" src="../../../../imgs/bubble-pop-gameplay.gif" /></p>
+<p><em>Playing with the live camera. The side panel shows the score, the incoming event rate, and how many events a bubble needs to pop.</em></p>
+<p>There's no neural network in this one. The game cuts the stream into 50 ms windows of sensor time, removes isolated events (real edges are connected, sensor noise is scattered), and counts the events inside each bubble. A bubble pops once it collects 200 events in a window. If too many pixels fire at once, the game assumes the room light changed and pops nothing.</p>
+<p>Fast waving ran into a limit of the USB link. The H7 Plus talks to the computer at USB Full-Speed, and in OpenMV's default Processed format, which spends 12 bytes on each event, that tops out at about 69k events/s. A waving hand produces more. With 8 buffers on the board, the extra events queued up and the display fell up to about 700 ms behind the hand. The game now uses 2 buffers, so the board drops the extra events instead of queuing them, and it streams the raw EVT2.0 format at about 4 bytes per event. With a hand waving the whole time, that got about 174k events/s through with a median delay of 3 ms.</p>
+<p>To play, no training needed:</p>
+<div class="highlight"><pre><span></span><code>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/EventSensorCourse/event_bubble_pop.git
+<span class="nb">cd</span><span class="w"> </span>event_bubble_pop
+python3.12<span class="w"> </span>-m<span class="w"> </span>venv<span class="w"> </span>.venv<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">source</span><span class="w"> </span>.venv/bin/activate
+python<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>-r<span class="w"> </span>requirements.txt
+
+python<span class="w"> </span>bubble_pop.py<span class="w">                          </span><span class="c1"># live camera, press SPACE to start</span>
+python<span class="w"> </span>bubble_pop.py<span class="w"> </span>--replay<span class="w"> </span>recording.csv<span class="w">   </span><span class="c1"># no board: play a recorded CSV</span>
+</code></pre></div>
+<p>The game also works as a template for your own event-camera project: keep <code>event_stream.py</code>, and swap the processing in <code>process_window()</code> for your own algorithm.</p>
+<p>All three projects are MIT licensed, so go wild.</p>
 
   
 
